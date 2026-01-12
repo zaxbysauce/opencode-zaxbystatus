@@ -67,6 +67,7 @@ export interface AntigravityAccountsFile {
 export interface AuthData {
   openai?: OpenAIAuthData;
   "zhipuai-coding-plan"?: ZhipuAuthData;
+  "zai-coding-plan"?: ZhipuAuthData;
 }
 
 // ============================================================================

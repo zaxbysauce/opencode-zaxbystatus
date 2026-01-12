@@ -49,17 +49,40 @@ interface QuotaLimitResponse {
   success: boolean;
 }
 
+interface PlatformConfig {
+  apiUrl: string;
+  apiError: (status: number, text: string) => string;
+  accountLabel: string;
+}
+
 // ============================================================================
 // API 调用
 // ============================================================================
 
-const QUOTA_QUERY_URL = "https://bigmodel.cn/api/monitor/usage/quota/limit";
+const ZHIPU_QUOTA_QUERY_URL =
+  "https://bigmodel.cn/api/monitor/usage/quota/limit";
+const ZAI_QUOTA_QUERY_URL = "https://api.z.ai/api/monitor/usage/quota/limit";
+
+const ZHIPU_CONFIG: PlatformConfig = {
+  apiUrl: ZHIPU_QUOTA_QUERY_URL,
+  apiError: t.zhipuApiError,
+  accountLabel: t.zhipuAccountName,
+};
+
+const ZAI_CONFIG: PlatformConfig = {
+  apiUrl: ZAI_QUOTA_QUERY_URL,
+  apiError: t.zaiApiError,
+  accountLabel: t.zaiAccountName,
+};
 
 /**
- * 获取智谱 AI 使用情况
+ * 获取智谱/Z.ai 使用情况
  */
-async function fetchZhipuUsage(apiKey: string): Promise<QuotaLimitResponse> {
-  const response = await fetchWithTimeout(QUOTA_QUERY_URL, {
+async function fetchUsage(
+  apiKey: string,
+  config: PlatformConfig,
+): Promise<QuotaLimitResponse> {
+  const response = await fetchWithTimeout(config.apiUrl, {
     method: "GET",
     headers: {
       Authorization: apiKey,
@@ -70,13 +93,13 @@ async function fetchZhipuUsage(apiKey: string): Promise<QuotaLimitResponse> {
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(t.zhipuApiError(response.status, errorText));
+    throw new Error(config.apiError(response.status, errorText));
   }
 
   const data = (await response.json()) as QuotaLimitResponse;
 
   if (!data.success || data.code !== 200) {
-    throw new Error(t.zhipuApiError(data.code, data.msg || "Unknown error"));
+    throw new Error(config.apiError(data.code, data.msg || "Unknown error"));
   }
 
   return data;
@@ -89,13 +112,17 @@ async function fetchZhipuUsage(apiKey: string): Promise<QuotaLimitResponse> {
 /**
  * 格式化智谱 AI 使用情况
  */
-function formatZhipuUsage(data: QuotaLimitResponse, apiKey: string): string {
+function formatZhipuUsage(
+  data: QuotaLimitResponse,
+  apiKey: string,
+  accountLabel: string,
+): string {
   const lines: string[] = [];
   const limits = data.data.limits;
 
-  // 标题行：Account: API Key (Coding Plan) - 显示脱敏后的 key
+  // 标题行：Account: API Key (Plan) - 显示脱敏后的 key
   const maskedKey = maskString(apiKey);
-  lines.push(`${t.account}        ${maskedKey} (Coding Plan)`);
+  lines.push(`${t.account}        ${maskedKey} (${accountLabel})`);
   lines.push("");
 
   // 空数组检查
@@ -155,6 +182,29 @@ function formatZhipuUsage(data: QuotaLimitResponse, apiKey: string): string {
 
 export type { ZhipuAuthData };
 
+async function queryUsage(
+  authData: ZhipuAuthData | undefined,
+  config: PlatformConfig,
+): Promise<QueryResult | null> {
+  // 检查账号是否存在且有效
+  if (!authData || authData.type !== "api" || !authData.key) {
+    return null;
+  }
+
+  try {
+    const usage = await fetchUsage(authData.key, config);
+    return {
+      success: true,
+      output: formatZhipuUsage(usage, authData.key, config.accountLabel),
+    };
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : String(err),
+    };
+  }
+}
+
 /**
  * 查询智谱 AI 账号额度
  * @param authData 智谱认证数据
@@ -163,21 +213,16 @@ export type { ZhipuAuthData };
 export async function queryZhipuUsage(
   authData: ZhipuAuthData | undefined,
 ): Promise<QueryResult | null> {
-  // 检查账号是否存在且有效
-  if (!authData || authData.type !== "api" || !authData.key) {
-    return null;
-  }
+  return queryUsage(authData, ZHIPU_CONFIG);
+}
 
-  try {
-    const usage = await fetchZhipuUsage(authData.key);
-    return {
-      success: true,
-      output: formatZhipuUsage(usage, authData.key),
-    };
-  } catch (err) {
-    return {
-      success: false,
-      error: err instanceof Error ? err.message : String(err),
-    };
-  }
+/**
+ * 查询 Z.ai 账号额度
+ * @param authData Z.ai 认证数据
+ * @returns 查询结果，如果账号不存在或无效返回 null
+ */
+export async function queryZaiUsage(
+  authData: ZhipuAuthData | undefined,
+): Promise<QueryResult | null> {
+  return queryUsage(authData, ZAI_CONFIG);
 }
