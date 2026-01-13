@@ -32,7 +32,7 @@ interface OpenAIUsageResponse {
     limit_reached: boolean;
     primary_window: RateLimitWindow;
     secondary_window: RateLimitWindow | null;
-  };
+  } | null;
 }
 
 // ============================================================================
@@ -42,6 +42,9 @@ interface OpenAIUsageResponse {
 interface JwtPayload {
   "https://api.openai.com/profile"?: {
     email?: string;
+  };
+  "https://api.openai.com/auth"?: {
+    chatgpt_account_id?: string;
   };
 }
 
@@ -75,6 +78,14 @@ function parseJwt(token: string): JwtPayload | null {
 function getEmailFromJwt(token: string): string | null {
   const payload = parseJwt(token);
   return payload?.["https://api.openai.com/profile"]?.email ?? null;
+}
+
+/**
+ * 从 JWT 中提取 ChatGPT 账号 ID（用于团队/组织账号）
+ */
+function getAccountIdFromJwt(token: string): string | null {
+  const payload = parseJwt(token);
+  return payload?.["https://api.openai.com/auth"]?.chatgpt_account_id ?? null;
 }
 
 // ============================================================================
@@ -121,11 +132,18 @@ const OPENAI_USAGE_URL = "https://chatgpt.com/backend-api/wham/usage";
 async function fetchOpenAIUsage(
   accessToken: string,
 ): Promise<OpenAIUsageResponse> {
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${accessToken}`,
+    "User-Agent": "OpenCode-Status-Plugin/1.0",
+  };
+
+  const accountId = getAccountIdFromJwt(accessToken);
+  if (accountId) {
+    headers["ChatGPT-Account-Id"] = accountId;
+  }
+
   const response = await fetchWithTimeout(OPENAI_USAGE_URL, {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      "User-Agent": "OpenCode-Status-Plugin/1.0",
-    },
+    headers,
   });
 
   if (!response.ok) {
@@ -156,18 +174,18 @@ function formatOpenAIUsage(
   lines.push("");
 
   // 主窗口
-  if (rate_limit.primary_window) {
+  if (rate_limit?.primary_window) {
     lines.push(...formatWindow(rate_limit.primary_window));
   }
 
   // 次窗口（如果存在）
-  if (rate_limit.secondary_window) {
+  if (rate_limit?.secondary_window) {
     lines.push("");
     lines.push(...formatWindow(rate_limit.secondary_window));
   }
 
   // 限额状态提示
-  if (rate_limit.limit_reached) {
+  if (rate_limit?.limit_reached) {
     lines.push("");
     lines.push(t.limitReached);
   }
