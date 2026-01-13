@@ -34,7 +34,7 @@ Install the opencode-mystatus plugin by following: https://raw.githubusercontent
 
 To install this plugin, perform these steps:
 
-1. Add `"opencode-mystatus@1.1.0"` to the `plugin` array in `~/.config/opencode/opencode.json`
+1. Add `"opencode-mystatus"` to the `plugin` array in `~/.config/opencode/opencode.json`
 
 2. Add the slash command to the `command` object in the same file:
 
