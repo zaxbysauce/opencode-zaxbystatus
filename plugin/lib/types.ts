@@ -26,7 +26,7 @@ export interface QueryResult {
  * OpenAI OAuth 认证数据
  */
 export interface OpenAIAuthData {
-  type: string;
+  type: "oauth";
   access?: string;
   refresh?: string;
   expires?: number;
@@ -36,7 +36,7 @@ export interface OpenAIAuthData {
  * 智谱 AI API 认证数据
  */
 export interface ZhipuAuthData {
-  type: string;
+  type: "api";
   key?: string;
 }
 
@@ -44,7 +44,7 @@ export interface ZhipuAuthData {
  * GitHub Copilot 认证数据
  */
 export interface CopilotAuthData {
-  type: string;
+  type: "oauth";
   refresh?: string;
   access?: string;
   expires?: number;

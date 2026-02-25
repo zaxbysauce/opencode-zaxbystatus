@@ -1,5 +1,6 @@
 /**
  * Abacus AI 账号额度查询模块
+ * @experimental - API endpoints not verified. May not work correctly.
  *
  * [输入]: API Key
  * [输出]: 格式化的账号额度状态
@@ -13,108 +14,29 @@ import {
   type MyStatusConfig,
 } from "./types";
 import {
-  fetchWithTimeout,
   maskString,
 } from "./utils";
+import { AbacusUsageResponseSchema } from "./schemas";
+import { createProviderQuery } from "./provider-factory";
 
 // ============================================================================
 // 类型定义
 // ============================================================================
 
-/**
- * Abacus AI 使用量响应
- * 灵活的响应结构，因为具体端点未确认
- */
-interface AbacusUsageResponse {
-  /** 使用量 */
-  usage?: number;
-  /** 限额 */
-  limit?: number;
-  /** 积分 */
-  credits?: number;
-  /** 剩余积分 */
-  creditsRemaining?: number;
-  /** 已用积分 */
-  creditsUsed?: number;
-  /** 账户信息 */
-  account?: {
-    name?: string;
-    email?: string;
-    plan?: string;
-  };
-  /** 其他可能的字段 */
-  [key: string]: unknown;
-}
+import type { AbacusUsageResponse } from "./schemas";
 
 // ============================================================================
-// API 配置
+// Provider Configuration
 // ============================================================================
 
-const ABACUS_BASE_URL = "https://abacus.ai/api/v0";
-
-// 尝试的端点列表（按优先级排序）
-const ABACUS_ENDPOINTS = [
-  "/getUsage",
-  "/usage",
-  "/account",
-];
-
-// ============================================================================
-// API 调用
-// ============================================================================
-
-/**
- * 获取 Abacus AI 使用量信息
- * 尝试多个端点，依次降级直到成功
- * @param apiKey Abacus API Key
- * @returns 使用量数据
- */
-async function fetchAbacusUsage(apiKey: string): Promise<AbacusUsageResponse> {
-  const headers: Record<string, string> = {
-    Authorization: `Bearer ${apiKey}`,
-    "Content-Type": "application/json",
-    "User-Agent": "OpenCode-Status-Plugin/1.0",
-  };
-
-  // 依次尝试每个端点
-  for (const endpoint of ABACUS_ENDPOINTS) {
-    const url = `${ABACUS_BASE_URL}${endpoint}`;
-    console.log(`Trying Abacus endpoint: ${endpoint}`);
-
-    try {
-      const response = await fetchWithTimeout(url, {
-        method: "GET",
-        headers,
-      });
-
-      // 处理 401 认证错误 - 立即抛出，不尝试其他端点
-      if (response.status === 401) {
-        throw new Error(t.abacusAuthError);
-      }
-
-      // 如果请求成功，解析响应
-      if (response.ok) {
-        const data = await response.json() as AbacusUsageResponse;
-        console.log(`Abacus endpoint ${endpoint} succeeded`);
-        return data;
-      }
-
-      // 其他错误码，记录并继续尝试下一个端点
-      const errorText = await response.text();
-      console.log(`Abacus endpoint ${endpoint} failed (${response.status}): ${errorText}`);
-    } catch (err) {
-      // 如果是认证错误，立即抛出
-      if (err instanceof Error && err.message === t.abacusAuthError) {
-        throw err;
-      }
-      // 其他错误，记录并继续
-      console.log(`Abacus endpoint ${endpoint} error: ${err instanceof Error ? err.message : String(err)}`);
-    }
-  }
-
-  // 所有端点都失败
-  throw new Error(t.abacusAllEndpointsFailed);
-}
+const abacusConfig = {
+  name: "Abacus",
+  baseUrl: "https://abacus.ai/api/v0",
+  authHeader: (key: string) => ({ Authorization: `Bearer ${key}` }),
+  endpoint: "/getUsage",
+  schema: AbacusUsageResponseSchema,
+  transform: (data: any, apiKey: string) => formatAbacusUsage(data, apiKey),
+};
 
 // ============================================================================
 // 格式化输出
@@ -124,7 +46,7 @@ async function fetchAbacusUsage(apiKey: string): Promise<AbacusUsageResponse> {
  * 格式化 Abacus AI 账号状态
  */
 function formatAbacusUsage(
-  data: AbacusUsageResponse | null,
+  data: any,
   apiKey: string,
 ): string {
   const lines: string[] = [];
@@ -132,6 +54,8 @@ function formatAbacusUsage(
   // 标题行：Account: API Key (Abacus AI)
   const maskedKey = maskString(apiKey);
   lines.push(`${t.account} ${maskedKey} (Abacus AI)`);
+  lines.push("");
+  lines.push("⚠️ This provider is experimental. API endpoints not verified.");
   lines.push("");
 
   // 如果没有数据
@@ -237,24 +161,4 @@ type AbacusAuthData = MyStatusConfig["abacus"];
  * @param authData Abacus 认证数据
  * @returns 查询结果，如果账号不存在或无效返回 null
  */
-export async function queryAbacusUsage(
-  authData: AbacusAuthData | undefined,
-): Promise<QueryResult | null> {
-  // 检查认证数据是否存在且有效
-  if (!authData || !authData.key) {
-    return null;
-  }
-
-  try {
-    const usageData = await fetchAbacusUsage(authData.key);
-    return {
-      success: true,
-      output: formatAbacusUsage(usageData, authData.key),
-    };
-  } catch (err) {
-    return {
-      success: false,
-      error: err instanceof Error ? err.message : String(err),
-    };
-  }
-}
+export const queryAbacusUsage = createProviderQuery(abacusConfig);

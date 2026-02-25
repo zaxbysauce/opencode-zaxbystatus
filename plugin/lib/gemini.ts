@@ -13,86 +13,39 @@ import {
   type ApiKeyAuthData,
 } from "./types";
 import {
-  fetchWithTimeout,
   maskString,
 } from "./utils";
+import { GeminiRateLimitsSchema } from "./schemas";
+import { createProviderQueryWithHeaders } from "./provider-factory";
 
 // ============================================================================
-// 类型定义
+// Provider Configuration
 // ============================================================================
 
-/**
- * Gemini 速率限制信息
- * 从响应头中提取
- */
-interface GeminiRateLimits {
-  /** 配额限制 */
-  limit?: number;
-  /** 剩余配额 */
-  remaining?: number;
-  /** 重置时间（Unix 时间戳，秒） */
-  reset?: number;
-}
+const geminiConfig = {
+  name: "Gemini",
+  baseUrl: "https://generativelanguage.googleapis.com",
+  authHeader: (key: string) => ({ "x-goog-api-key": key }),
+  endpoint: "/v1beta/models",
+  schema: GeminiRateLimitsSchema,
+  transform: (data: any, apiKey: string) => formatGeminiUsage(data, apiKey),
+  parseHeaders: (headers: Headers): any | null => {
+    const limit = headers.get("x-ratelimit-limit");
+    const remaining = headers.get("x-ratelimit-remaining");
+    const reset = headers.get("x-ratelimit-reset");
 
-// ============================================================================
-// API 配置
-// ============================================================================
+    // 如果没有任何速率限制头，返回 null
+    if (!limit && !remaining) {
+      return null;
+    }
 
-const GEMINI_MODELS_URL =
-  "https://generativelanguage.googleapis.com/v1beta/models";
-
-// ============================================================================
-// API 调用
-// ============================================================================
-
-/**
- * 获取 Gemini 速率限制信息
- * 通过调用 models endpoint 并解析响应头获取
- */
-async function fetchGeminiRateLimits(
-  apiKey: string,
-): Promise<GeminiRateLimits | null> {
-  const url = `${GEMINI_MODELS_URL}?key=${apiKey}`;
-  const response = await fetchWithTimeout(url, {
-    method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-      "User-Agent": "OpenCode-Status-Plugin/1.0",
-    },
-  });
-
-  // 400 表示认证失败（无效的 API key）
-  if (response.status === 400) {
-    throw new Error(t.geminiInvalidKey);
-  }
-
-  // 403 通常表示配额超出或权限不足
-  if (response.status === 403) {
-    throw new Error(t.geminiApiError(response.status, ""));
-  }
-
-  // 其他错误
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(t.geminiApiError(response.status, errorText));
-  }
-
-  // 解析速率限制头
-  const limit = response.headers.get("x-ratelimit-limit");
-  const remaining = response.headers.get("x-ratelimit-remaining");
-  const reset = response.headers.get("x-ratelimit-reset");
-
-  // 如果没有任何速率限制头，返回 null
-  if (!limit && !remaining) {
-    return null;
-  }
-
-  return {
-    limit: limit ? parseInt(limit, 10) : undefined,
-    remaining: remaining ? parseInt(remaining, 10) : undefined,
-    reset: reset ? parseInt(reset, 10) : undefined,
-  };
-}
+    return {
+      limit: limit ? parseInt(limit, 10) : undefined,
+      remaining: remaining ? parseInt(remaining, 10) : undefined,
+      reset: reset ? parseInt(reset, 10) : undefined,
+    };
+  },
+};
 
 // ============================================================================
 // 格式化输出
@@ -102,7 +55,7 @@ async function fetchGeminiRateLimits(
  * 格式化 Gemini 速率限制状态
  */
 function formatGeminiUsage(
-  rateLimits: GeminiRateLimits | null,
+  rateLimits: any,
   apiKey: string,
 ): string {
   const lines: string[] = [];
@@ -180,24 +133,4 @@ function formatGeminiResetTime(resetSeconds: number): string {
  * @param authData Gemini 认证数据
  * @returns 查询结果，如果账号不存在或无效返回 null
  */
-export async function queryGeminiUsage(
-  authData: ApiKeyAuthData | undefined,
-): Promise<QueryResult | null> {
-  // 检查认证数据是否存在且有效
-  if (!authData || authData.type !== "api" || !authData.key) {
-    return null;
-  }
-
-  try {
-    const rateLimits = await fetchGeminiRateLimits(authData.key);
-    return {
-      success: true,
-      output: formatGeminiUsage(rateLimits, authData.key),
-    };
-  } catch (err) {
-    return {
-      success: false,
-      error: err instanceof Error ? err.message : String(err),
-    };
-  }
-}
+export const queryGeminiUsage = createProviderQueryWithHeaders(geminiConfig);

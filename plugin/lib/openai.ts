@@ -14,26 +14,16 @@ import {
   createProgressBar,
   calcRemainPercent,
   fetchWithTimeout,
+  handleProviderError,
+  validateResponse,
 } from "./utils";
+import { OpenAIUsageSchema } from "./schemas";
 
 // ============================================================================
 // 类型定义
 // ============================================================================
 
-interface RateLimitWindow {
-  used_percent: number;
-  limit_window_seconds: number;
-  reset_after_seconds: number;
-}
-
-interface OpenAIUsageResponse {
-  plan_type: string;
-  rate_limit: {
-    limit_reached: boolean;
-    primary_window: RateLimitWindow;
-    secondary_window: RateLimitWindow | null;
-  } | null;
-}
+import type { OpenAIUsageResponse, RateLimitWindow } from "./schemas";
 
 // ============================================================================
 // JWT 解析
@@ -151,7 +141,8 @@ async function fetchOpenAIUsage(
     throw new Error(t.apiError(response.status, errorText));
   }
 
-  return response.json() as Promise<OpenAIUsageResponse>;
+  const rawData = await response.json();
+  return validateResponse(rawData, OpenAIUsageSchema, "OpenAI");
 }
 
 // ============================================================================
@@ -228,9 +219,6 @@ export async function queryOpenAIUsage(
       output: formatOpenAIUsage(usage, email),
     };
   } catch (err) {
-    return {
-      success: false,
-      error: err instanceof Error ? err.message : String(err),
-    };
+    return handleProviderError(err, "OpenAI");
   }
 }

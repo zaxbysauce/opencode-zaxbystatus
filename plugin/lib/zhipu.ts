@@ -21,33 +21,16 @@ import {
   fetchWithTimeout,
   safeMax,
   maskString,
+  handleProviderError,
+  validateResponse,
 } from "./utils";
+import { QuotaLimitResponseSchema } from "./schemas";
 
 // ============================================================================
 // 类型定义
 // ============================================================================
 
-interface UsageLimitItem {
-  /** 限制类型：TOKENS_LIMIT(Token) / TIME_LIMIT(MCP搜索次数) */
-  type: "TIME_LIMIT" | "TOKENS_LIMIT";
-  /** 总配额/限制数 */
-  usage: number;
-  /** 当前已使用 */
-  currentValue: number;
-  /** 使用百分比 */
-  percentage: number;
-  /** 下次重置时间戳 (ms，仅 TOKENS_LIMIT 有效) */
-  nextResetTime?: number;
-}
-
-interface QuotaLimitResponse {
-  code: number;
-  msg: string;
-  data: {
-    limits: UsageLimitItem[];
-  };
-  success: boolean;
-}
+import type { QuotaLimitResponse, UsageLimitItem } from "./schemas";
 
 interface PlatformConfig {
   apiUrl: string;
@@ -96,7 +79,8 @@ async function fetchUsage(
     throw new Error(config.apiError(response.status, errorText));
   }
 
-  const data = (await response.json()) as QuotaLimitResponse;
+  const rawData = await response.json();
+  const data = validateResponse(rawData, QuotaLimitResponseSchema, "Zhipu");
 
   if (!data.success || data.code !== 200) {
     throw new Error(config.apiError(data.code, data.msg || "Unknown error"));
@@ -198,10 +182,7 @@ async function queryUsage(
       output: formatZhipuUsage(usage, authData.key, config.accountLabel),
     };
   } catch (err) {
-    return {
-      success: false,
-      error: err instanceof Error ? err.message : String(err),
-    };
+    return handleProviderError(err, "Zhipu");
   }
 }
 

@@ -15,24 +15,16 @@ import {
   formatDuration,
   fetchWithTimeout,
   maskString,
+  handleProviderError,
+  validateResponse,
 } from "./utils";
+import { MinimaxRateLimitsSchema } from "./schemas";
 
 // ============================================================================
 // 类型定义
 // ============================================================================
 
-/**
- * MiniMax 速率限制信息
- * 从响应头中提取
- */
-interface MinimaxRateLimits {
-  /** 窗口内请求限制数 */
-  limit: number;
-  /** 窗口内剩余请求数 */
-  remaining: number;
-  /** 重置时间戳 (Unix, 秒) */
-  reset?: number;
-}
+import type { MinimaxRateLimits } from "./schemas";
 
 // ============================================================================
 // API 配置
@@ -88,7 +80,6 @@ async function fetchMinimaxRateLimits(
     return parseRateLimitHeaders(response);
   } catch (primaryError) {
     // 如果主要端点失败，尝试备用端点
-    console.log(`MiniMax primary endpoint failed, trying fallback: ${primaryError}`);
 
     const response = await fetchWithTimeout(MINIMAX_MODELS_URL_FALLBACK, {
       method: "GET",
@@ -124,11 +115,13 @@ function parseRateLimitHeaders(response: Response): MinimaxRateLimits | null {
     return null;
   }
 
-  return {
+  const rawData = {
     limit: limit ? parseInt(limit, 10) : 0,
     remaining: remaining ? parseInt(remaining, 10) : 0,
     reset: reset ? parseInt(reset, 10) : undefined,
   };
+
+  return validateResponse(rawData, MinimaxRateLimitsSchema, "MiniMax");
 }
 
 // ============================================================================
@@ -214,9 +207,6 @@ export async function queryMinimaxUsage(
       output: formatMinimaxUsage(rateLimits, authData.key, !!authData.groupId),
     };
   } catch (err) {
-    return {
-      success: false,
-      error: err instanceof Error ? err.message : String(err),
-    };
+    return handleProviderError(err, "MiniMax");
   }
 }

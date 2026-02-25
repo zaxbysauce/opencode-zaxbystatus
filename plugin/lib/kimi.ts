@@ -1,5 +1,6 @@
 /**
  * Kimi (Moonshot) 额度查询模块
+ * @experimental - API endpoints not verified. May not work correctly.
  *
  * [输入]: API Key
  * [输出]: 格式化的额度使用情况
@@ -16,24 +17,16 @@ import {
 import {
   createProgressBar,
   calcRemainPercent,
-  fetchWithTimeout,
   maskString,
 } from "./utils";
+import { KimiBalanceResponseSchema } from "./schemas";
+import { createProviderQuery } from "./provider-factory";
 
 // ============================================================================
 // 类型定义
 // ============================================================================
 
-interface KimiBalanceResponse {
-  code: number;
-  data?: {
-    balance?: number;
-    currency?: string;
-    totalQuota?: number;
-    usedQuota?: number;
-  };
-  msg?: string;
-}
+import type { KimiBalanceResponse } from "./schemas";
 
 interface KimiConfig {
   apiUrl: string;
@@ -42,7 +35,7 @@ interface KimiConfig {
 }
 
 // ============================================================================
-// API 调用
+// Provider Configurations
 // ============================================================================
 
 const MOONSHOT_CONFIG: KimiConfig = {
@@ -57,35 +50,27 @@ const KIMI_CODE_CONFIG: KimiConfig = {
   accountLabel: "Kimi Code",
 };
 
-/**
- * 获取 Kimi 账户余额信息
- */
-async function fetchKimiBalance(
-  apiKey: string,
-  config: KimiConfig,
-): Promise<KimiBalanceResponse> {
-  const response = await fetchWithTimeout(config.apiUrl, {
-    method: "GET",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-      "User-Agent": "OpenCode-Status-Plugin/1.0",
-    },
-  });
+// ============================================================================
+// Factory Configurations
+// ============================================================================
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(config.apiError(response.status, errorText));
-  }
+const kimiMoonshotConfig = {
+  name: "Kimi",
+  baseUrl: "https://api.moonshot.cn",
+  authHeader: (key: string) => ({ Authorization: `Bearer ${key}` }),
+  endpoint: "/v1/users/me/balance",
+  schema: KimiBalanceResponseSchema,
+  transform: (data: any, apiKey: string) => formatKimiUsage(data, apiKey, "Moonshot"),
+};
 
-  const data = (await response.json()) as KimiBalanceResponse;
-
-  if (data.code !== 200) {
-    throw new Error(config.apiError(data.code, data.msg || "Unknown error"));
-  }
-
-  return data;
-}
+const kimiCodeConfig = {
+  name: "Kimi Code",
+  baseUrl: "https://api.kimi.com",
+  authHeader: (key: string) => ({ Authorization: `Bearer ${key}` }),
+  endpoint: "/coding/v1/users/me/balance",
+  schema: KimiBalanceResponseSchema,
+  transform: (data: any, apiKey: string) => formatKimiUsage(data, apiKey, "Kimi Code"),
+};
 
 // ============================================================================
 // 格式化输出
@@ -95,16 +80,18 @@ async function fetchKimiBalance(
  * 格式化 Kimi 使用情况
  */
 function formatKimiUsage(
-  data: KimiBalanceResponse,
+  data: any,
   apiKey: string,
   accountLabel: string,
 ): string {
   const lines: string[] = [];
-  const balanceData = data.data;
+  const balanceData = data?.data;
 
   // 标题行：Account: API Key (Account Label) - 显示脱敏后的 key
   const maskedKey = maskString(apiKey);
   lines.push(`${t.account}        ${maskedKey} (${accountLabel})`);
+  lines.push("");
+  lines.push("⚠️ This provider is experimental. API endpoints not verified.");
   lines.push("");
 
   // 检查数据是否存在
@@ -155,47 +142,16 @@ function formatKimiUsage(
 // 导出接口
 // ============================================================================
 
-async function queryKimiWithConfig(
-  authData: { key: string } | undefined,
-  config: KimiConfig,
-): Promise<QueryResult | null> {
-  // 检查账号是否存在且有效
-  if (!authData || !authData.key) {
-    return null;
-  }
-
-  try {
-    const balance = await fetchKimiBalance(authData.key, config);
-    return {
-      success: true,
-      output: formatKimiUsage(balance, authData.key, config.accountLabel),
-    };
-  } catch (err) {
-    return {
-      success: false,
-      error: err instanceof Error ? err.message : String(err),
-    };
-  }
-}
-
 /**
  * 查询 Kimi (Moonshot) 账号额度
  * @param config Kimi (Moonshot) 认证配置
  * @returns 查询结果，如果账号不存在或无效返回 null
  */
-export async function queryKimiUsage(
-  config: MyStatusConfig["kimi"] | undefined,
-): Promise<QueryResult | null> {
-  return queryKimiWithConfig(config, MOONSHOT_CONFIG);
-}
+export const queryKimiUsage = createProviderQuery(kimiMoonshotConfig);
 
 /**
  * 查询 Kimi Code 账号额度
  * @param config Kimi Code 认证配置
  * @returns 查询结果，如果账号不存在或无效返回 null
  */
-export async function queryKimiCodeUsage(
-  config: MyStatusConfig["kimi-code"] | undefined,
-): Promise<QueryResult | null> {
-  return queryKimiWithConfig(config, KIMI_CODE_CONFIG);
-}
+export const queryKimiCodeUsage = createProviderQuery(kimiCodeConfig);

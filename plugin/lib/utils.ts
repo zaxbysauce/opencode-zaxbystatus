@@ -1,8 +1,5 @@
 /**
- * 共享工具函数
- *
- * [定位]: 被所有平台模块共享使用的工具函数
- * [同步]: openai.ts, zhipu.ts, google.ts
+ * Shared utility functions used across all provider modules
  */
 
 import { t, currentLang } from "./i18n";
@@ -10,14 +7,12 @@ import { REQUEST_TIMEOUT_MS, MyStatusConfig } from "./types";
 import { readFile } from "fs/promises";
 import { homedir } from "os";
 import { join } from "path";
+import { z } from "zod";
 
 // ============================================================================
 // 时间格式化
 // ============================================================================
 
-/**
- * 将秒数转换为人类可读的时间格式
- */
 export function formatDuration(seconds: number): string {
   const days = Math.floor(seconds / 86400);
   const hours = Math.floor((seconds % 86400) / 3600);
@@ -35,11 +30,6 @@ export function formatDuration(seconds: number): string {
 // 进度条
 // ============================================================================
 
-/**
- * 生成进度条（实心代表剩余额度）
- * @param remainPercent 剩余百分比 (0-100)
- * @param width 进度条宽度（字符数）
- */
 export function createProgressBar(
   remainPercent: number,
   width: number = 30,
@@ -59,17 +49,10 @@ export function createProgressBar(
 // 数值格式化
 // ============================================================================
 
-/**
- * 计算剩余百分比并取整
- * @param usedPercent 已使用百分比
- */
 export function calcRemainPercent(usedPercent: number): number {
   return Math.round(100 - usedPercent);
 }
 
-/**
- * 格式化 Token 数量（以百万为单位）
- */
 export function formatTokens(tokens: number): string {
   return (tokens / 1000000).toFixed(1) + "M";
 }
@@ -78,12 +61,6 @@ export function formatTokens(tokens: number): string {
 // 网络请求
 // ============================================================================
 
-/**
- * 带超时的 fetch 请求
- * @param url 请求 URL
- * @param options fetch 选项
- * @param timeoutMs 超时时间（毫秒），默认使用全局配置
- */
 export async function fetchWithTimeout(
   url: string,
   options: RequestInit,
@@ -112,9 +89,6 @@ export async function fetchWithTimeout(
 // 安全计算
 // ============================================================================
 
-/**
- * 安全获取数组最大值，空数组返回 0
- */
 export function safeMax(arr: number[]): number {
   if (arr.length === 0) return 0;
   return Math.max(...arr);
@@ -124,12 +98,6 @@ export function safeMax(arr: number[]): number {
 // 字符串处理
 // ============================================================================
 
-/**
- * 脱敏显示敏感字符串
- * 显示前 N 位和后 N 位，中间用 **** 替代
- * @param str 原始字符串
- * @param showChars 前后各显示的字符数，默认 4
- */
 export function maskString(str: string, showChars: number = 4): string {
   if (str.length <= showChars * 2) {
     return str;
@@ -148,11 +116,6 @@ const MYSTATUS_CONFIG_PATH = join(
   "mystatus.json",
 );
 
-/**
- * 读取 mystatus 配置文件
- * 读取 ~/.config/opencode/mystatus.json
- * 返回 null 如果文件不存在或解析失败
- */
 export async function readMyStatusConfig(): Promise<MyStatusConfig | null> {
   try {
     const content = await readFile(MYSTATUS_CONFIG_PATH, "utf-8");
@@ -161,4 +124,47 @@ export async function readMyStatusConfig(): Promise<MyStatusConfig | null> {
   } catch {
     return null;
   }
+}
+
+/**
+ * Centralized error handler for provider modules
+ * @param err The error caught in catch block
+ * @param context Provider name or context for error message
+ * @returns QueryResult error object
+ */
+export function handleProviderError(
+  err: unknown,
+  context: string,
+): { success: false; error: string } {
+  const message = err instanceof Error ? err.message : String(err);
+  return {
+    success: false,
+    error: `[${context}] ${message}`,
+  };
+}
+
+// ============================================================================
+// Runtime Validation (Zod)
+// ============================================================================
+
+/**
+ * Validate API response data against a Zod schema
+ * @param data The raw data to validate
+ * @param schema The Zod schema to validate against
+ * @param context Context string for error messages (e.g., provider name)
+ * @returns The validated and parsed data
+ * @throws Error if validation fails
+ */
+export function validateResponse<T>(
+  data: unknown,
+  schema: z.ZodSchema<T>,
+  context: string,
+): T {
+  const result = schema.safeParse(data);
+  if (!result.success) {
+    throw new Error(
+      `[${context}] Invalid API response: ${result.error.message}`,
+    );
+  }
+  return result.data;
 }

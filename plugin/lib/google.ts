@@ -18,44 +18,25 @@ import {
   type AntigravityAccountsFile,
   HIGH_USAGE_THRESHOLD,
 } from "./types";
-import { createProgressBar, fetchWithTimeout, safeMax } from "./utils";
+import {
+  createProgressBar,
+  fetchWithTimeout,
+  safeMax,
+  handleProviderError,
+  validateResponse,
+} from "./utils";
+import { GoogleQuotaResponseSchema } from "./schemas";
 
 // ============================================================================
 // 类型定义
 // ============================================================================
 
-interface GoogleQuotaResponse {
-  models: Record<
-    string,
-    {
-      quotaInfo?: {
-        remainingFraction?: number;
-        resetTime?: string;
-      };
-    }
-  >;
-}
-
-/** 单个模型的额度信息 */
-interface ModelQuota {
-  displayName: string;
-  remainPercent: number;
-  resetTimeDisplay: string;
-}
-
-/** 账号额度信息 */
-interface AccountQuotaInfo {
-  email: string;
-  models: ModelQuota[];
-  maxUsage: number;
-}
-
-/** 模型配置 */
-interface ModelConfig {
-  key: string;
-  altKey?: string;
-  display: string;
-}
+import type {
+  GoogleQuotaResponse,
+  ModelQuota,
+  AccountQuotaInfo,
+  ModelConfig,
+} from "./schemas";
 
 // ============================================================================
 // 常量
@@ -89,11 +70,11 @@ function getAntigravityAccountsPath(): string {
 
 const GOOGLE_TOKEN_REFRESH_URL = "https://oauth2.googleapis.com/token";
 
-// OAuth credentials from opencode-antigravity-auth project
-// Source: https://github.com/NoeFabris/opencode-antigravity-auth
-const GOOGLE_CLIENT_ID =
-  "1071006060591-tmhssin2h21lcre235vtolojh4g403ep.apps.googleusercontent.com";
-const GOOGLE_CLIENT_SECRET = "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";
+// OAuth credentials from environment variables
+// These are required for Google Cloud token refresh
+// Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in your environment
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 
 // ============================================================================
 // 工具函数
@@ -162,6 +143,14 @@ function extractModelQuotas(data: GoogleQuotaResponse): ModelQuota[] {
 async function refreshAccessToken(
   refreshToken: string,
 ): Promise<{ access_token: string; expires_in: number }> {
+  // Validate environment variables are set
+  if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
+    throw new Error(
+      "Google OAuth credentials not configured. " +
+        "Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET environment variables."
+    );
+  }
+
   const params = new URLSearchParams({
     client_id: GOOGLE_CLIENT_ID,
     client_secret: GOOGLE_CLIENT_SECRET,
@@ -209,7 +198,8 @@ async function fetchGoogleUsage(
     throw new Error(t.googleApiError(response.status, errorText));
   }
 
-  return response.json() as Promise<GoogleQuotaResponse>;
+  const rawData = await response.json();
+  return validateResponse(rawData, GoogleQuotaResponseSchema, "Google");
 }
 
 /**
@@ -240,7 +230,7 @@ async function fetchAccountQuota(
     const models = extractModelQuotas(data);
 
     if (models.length === 0) {
-      return { success: true, models: undefined, maxUsage: 0 };
+    return { success: true, models: undefined, maxUsage: 0 };
     }
 
     // 计算最大使用率
@@ -248,10 +238,7 @@ async function fetchAccountQuota(
 
     return { success: true, models, maxUsage };
   } catch (err) {
-    return {
-      success: false,
-      error: err instanceof Error ? err.message : String(err),
-    };
+    return handleProviderError(err, "Google");
   }
 }
 
@@ -362,9 +349,6 @@ export async function queryGoogleUsage(): Promise<QueryResult> {
       output: outputs.join("\n\n"),
     };
   } catch (err) {
-    return {
-      success: false,
-      error: err instanceof Error ? err.message : String(err),
-    };
+    return handleProviderError(err, "Google");
   }
 }

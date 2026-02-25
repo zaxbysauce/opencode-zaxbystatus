@@ -18,7 +18,17 @@ import {
   type CopilotQuotaConfig,
   type CopilotTier,
 } from "./types";
-import { createProgressBar, fetchWithTimeout } from "./utils";
+import {
+  createProgressBar,
+  fetchWithTimeout,
+  handleProviderError,
+  validateResponse,
+} from "./utils";
+import {
+  CopilotUsageResponseSchema,
+  CopilotTokenResponseSchema,
+  BillingUsageResponseSchema,
+} from "./schemas";
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
@@ -27,61 +37,14 @@ import * as os from "os";
 // Type Definitions
 // ============================================================================
 
-interface QuotaDetail {
-  entitlement: number;
-  overage_count: number;
-  overage_permitted: boolean;
-  percent_remaining: number;
-  quota_id: string;
-  quota_remaining: number;
-  remaining: number;
-  unlimited: boolean;
-}
-
-interface QuotaSnapshots {
-  chat?: QuotaDetail;
-  completions?: QuotaDetail;
-  premium_interactions: QuotaDetail;
-}
-
-interface CopilotUsageResponse {
-  access_type_sku: string;
-  analytics_tracking_id: string;
-  assigned_date: string;
-  can_signup_for_limited: boolean;
-  chat_enabled: boolean;
-  copilot_plan: string;
-  organization_login_list: unknown[];
-  organization_list: unknown[];
-  quota_reset_date: string;
-  quota_snapshots: QuotaSnapshots;
-}
-
-interface CopilotTokenResponse {
-  token: string;
-  expires_at: number;
-  refresh_in: number;
-  endpoints: {
-    api: string;
-  };
-}
-
-// Public Billing API response types
-interface BillingUsageItem {
-  product: string;
-  sku: string;
-  model?: string;
-  unitType: string;
-  grossQuantity: number;
-  netQuantity: number;
-  limit?: number;
-}
-
-interface BillingUsageResponse {
-  timePeriod: { year: number; month?: number };
-  user: string;
-  usageItems: BillingUsageItem[];
-}
+import type {
+  QuotaDetail,
+  QuotaSnapshots,
+  CopilotUsageResponse,
+  CopilotTokenResponse,
+  BillingUsageItem,
+  BillingUsageResponse,
+} from "./schemas";
 
 // ============================================================================
 // Constants
@@ -173,7 +136,8 @@ async function fetchPublicBillingUsage(
     throw new Error(t.copilotApiError(response.status, errorText));
   }
 
-  return response.json() as Promise<BillingUsageResponse>;
+  const rawData = await response.json();
+  return validateResponse(rawData, BillingUsageResponseSchema, "Copilot");
 }
 
 /**
@@ -200,7 +164,11 @@ async function exchangeForCopilotToken(
       return null;
     }
 
-    const tokenData: CopilotTokenResponse = await response.json();
+    const tokenData = validateResponse(
+      await response.json(),
+      CopilotTokenResponseSchema,
+      "Copilot",
+    );
     return tokenData.token;
   } catch {
     return null;
@@ -264,7 +232,11 @@ async function fetchCopilotUsage(
     );
 
     if (response.ok) {
-      return response.json() as Promise<CopilotUsageResponse>;
+      return validateResponse(
+        await response.json(),
+        CopilotUsageResponseSchema,
+        "Copilot",
+      );
     }
   }
 
@@ -275,7 +247,11 @@ async function fetchCopilotUsage(
   );
 
   if (directResponse.ok) {
-    return directResponse.json() as Promise<CopilotUsageResponse>;
+    return validateResponse(
+      await directResponse.json(),
+      CopilotUsageResponseSchema,
+      "Copilot",
+    );
   }
 
   // Strategy 3: Exchange OAuth token for Copilot session token (new auth flow)
@@ -288,7 +264,11 @@ async function fetchCopilotUsage(
     );
 
     if (exchangedResponse.ok) {
-      return exchangedResponse.json() as Promise<CopilotUsageResponse>;
+      return validateResponse(
+        await exchangedResponse.json(),
+        CopilotUsageResponseSchema,
+        "Copilot",
+      );
     }
 
     const errorText = await exchangedResponse.text();
@@ -492,10 +472,7 @@ export async function queryCopilotUsage(
       };
     } catch (err) {
       // PAT config exists but failed - report the error
-      return {
-        success: false,
-        error: err instanceof Error ? err.message : String(err),
-      };
+      return handleProviderError(err, "Copilot");
     }
   }
 
@@ -516,9 +493,6 @@ export async function queryCopilotUsage(
       output: formatCopilotUsage(usage),
     };
   } catch (err) {
-    return {
-      success: false,
-      error: err instanceof Error ? err.message : String(err),
-    };
+    return handleProviderError(err, "Copilot");
   }
 }

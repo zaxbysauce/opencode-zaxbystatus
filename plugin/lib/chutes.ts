@@ -20,63 +20,24 @@ import {
   fetchWithTimeout,
   safeMax,
   maskString,
+  handleProviderError,
+  validateResponse,
 } from "./utils";
+import {
+  ChutesQuotaUsageResponseSchema,
+  ChutesQuotaLimitsResponseSchema,
+} from "./schemas";
 
 // ============================================================================
 // 类型定义
 // ============================================================================
 
-/**
- * Chutes 配额使用量项
- */
-interface ChutesQuotaUsageItem {
-  /** 配额类型 */
-  quotaType: string;
-  /** 配额名称 */
-  name: string;
-  /** 当前已使用量 */
-  used: number;
-  /** 总量限制 */
-  limit: number;
-  /** 使用百分比 */
-  percentage: number;
-  /** 重置时间戳 (Unix timestamp in seconds) */
-  resetAt?: number;
-}
-
-/**
- * Chutes 配额使用量响应
- */
-interface ChutesQuotaUsageResponse {
-  /** 当前周期使用量列表 */
-  currentPeriodUsage: ChutesQuotaUsageItem[];
-  /** 用户 ID */
-  userId: string;
-}
-
-/**
- * Chutes 配额限制项
- */
-interface ChutesQuotaLimitItem {
-  /** 配额类型 */
-  quotaType: string;
-  /** 配额名称 */
-  name: string;
-  /** 总量限制 */
-  limit: number;
-  /** 单位 */
-  unit?: string;
-}
-
-/**
- * Chutes 配额限制响应
- */
-interface ChutesQuotaLimitsResponse {
-  /** 配额限制列表 */
-  quotas: ChutesQuotaLimitItem[];
-  /** 用户 ID */
-  userId: string;
-}
+import type {
+  ChutesQuotaUsageItem,
+  ChutesQuotaUsageResponse,
+  ChutesQuotaLimitItem,
+  ChutesQuotaLimitsResponse,
+} from "./schemas";
 
 // ============================================================================
 // API 配置
@@ -113,8 +74,8 @@ async function fetchChutesQuotaUsage(
     throw new Error(t.chutesApiError(response.status, errorText));
   }
 
-  const data = (await response.json()) as ChutesQuotaUsageResponse;
-  return data;
+  const rawData = await response.json();
+  return validateResponse(rawData, ChutesQuotaUsageResponseSchema, "Chutes");
 }
 
 /**
@@ -140,8 +101,8 @@ async function fetchChutesQuotas(
     throw new Error(t.chutesApiError(response.status, errorText));
   }
 
-  const data = (await response.json()) as ChutesQuotaLimitsResponse;
-  return data;
+  const rawData = await response.json();
+  return validateResponse(rawData, ChutesQuotaLimitsResponseSchema, "Chutes");
 }
 
 // ============================================================================
@@ -245,9 +206,6 @@ export async function queryChutesUsage(
       output: formatChutesUsage(usage, quotas, config.token),
     };
   } catch (err) {
-    return {
-      success: false,
-      error: err instanceof Error ? err.message : String(err),
-    };
+    return handleProviderError(err, "Chutes");
   }
 }

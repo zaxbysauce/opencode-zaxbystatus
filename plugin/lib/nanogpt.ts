@@ -1,5 +1,6 @@
 /**
  * Nano-GPT 账号额度查询模块
+ * @experimental - API endpoints not verified. May not work correctly.
  *
  * [输入]: API Key
  * [输出]: 格式化的账号额度状态
@@ -13,156 +14,29 @@ import {
   type MyStatusConfig,
 } from "./types";
 import {
-  fetchWithTimeout,
   maskString,
 } from "./utils";
+import { NanoGptAccountResponseSchema } from "./schemas";
+import { createProviderQuery } from "./provider-factory";
 
 // ============================================================================
 // 类型定义
 // ============================================================================
 
-/**
- * Nano-GPT 账号响应
- */
-interface NanoGptAccountResponse {
-  /** 账户余额 */
-  balance?: number;
-  /** 货币单位 */
-  currency?: string;
-  /** 每日请求限制 (RPD) */
-  rpdLimit?: number;
-  /** 每日 USD 限制 */
-  usdPerDayLimit?: number;
-  /** 使用量信息 */
-  usage?: {
-    /** 今日使用量 */
-    today?: number;
-    /** 本月使用量 */
-    thisMonth?: number;
-  };
-  /** 其他可能的字段 */
-  [key: string]: unknown;
-}
-
-/**
- * Nano-GPT 余额响应（备用端点）
- */
-interface NanoGptBalanceResponse {
-  /** 余额 */
-  balance?: number;
-  /** 货币单位 */
-  currency?: string;
-  /** 其他可能的字段 */
-  [key: string]: unknown;
-}
+import type { NanoGptAccountResponse } from "./schemas";
 
 // ============================================================================
-// API 配置
+// Provider Configuration
 // ============================================================================
 
-const NANOGPT_BASE_URL = "https://nano-gpt.com/api";
-
-// ============================================================================
-// API 调用
-// ============================================================================
-
-/**
- * 获取 Nano-GPT 账号信息
- * 优先尝试 /account 端点，失败则降级到 /balance
- * @param apiKey Nano-GPT API Key
- * @returns 账号数据
- */
-async function fetchNanoGptAccount(apiKey: string): Promise<NanoGptAccountResponse | NanoGptBalanceResponse> {
-  const headers: Record<string, string> = {
-    Authorization: `Bearer ${apiKey}`,
-    "Content-Type": "application/json",
-    "User-Agent": "OpenCode-Status-Plugin/1.0",
-  };
-
-  // 首先尝试 /account 端点
-  const accountUrl = `${NANOGPT_BASE_URL}/account`;
-  console.log("Trying Nano-GPT endpoint: /account");
-
-  try {
-    const accountResponse = await fetchWithTimeout(accountUrl, {
-      method: "GET",
-      headers,
-    });
-
-    // 处理 401 认证错误
-    if (accountResponse.status === 401) {
-      throw new Error(t.nanoGptAuthError);
-    }
-
-    // 处理 429 速率限制
-    if (accountResponse.status === 429) {
-      const retryAfter = accountResponse.headers.get("Retry-After");
-      throw new Error(t.nanoGptRateLimitError(retryAfter));
-    }
-
-    // 如果请求成功
-    if (accountResponse.ok) {
-      const data = await accountResponse.json() as NanoGptAccountResponse;
-      console.log("Nano-GPT /account endpoint succeeded");
-      return data;
-    }
-
-    // 其他错误，记录并继续尝试备用端点
-    const errorText = await accountResponse.text();
-    console.log(`Nano-GPT /account endpoint failed (${accountResponse.status}): ${errorText}`);
-  } catch (err) {
-    // 如果是认证错误，立即抛出
-    if (err instanceof Error && err.message === t.nanoGptAuthError) {
-      throw err;
-    }
-    // 如果是速率限制错误，立即抛出
-    if (err instanceof Error && err.message.startsWith("⚠️")) {
-      throw err;
-    }
-    // 其他错误，记录并继续
-    console.log(`Nano-GPT /account endpoint error: ${err instanceof Error ? err.message : String(err)}`);
-  }
-
-  // 备用：尝试 /balance 端点
-  const balanceUrl = `${NANOGPT_BASE_URL}/balance`;
-  console.log("Trying Nano-GPT endpoint: /balance");
-
-  try {
-    const balanceResponse = await fetchWithTimeout(balanceUrl, {
-      method: "GET",
-      headers,
-    });
-
-    // 处理 401 认证错误
-    if (balanceResponse.status === 401) {
-      throw new Error(t.nanoGptAuthError);
-    }
-
-    // 处理 429 速率限制
-    if (balanceResponse.status === 429) {
-      const retryAfter = balanceResponse.headers.get("Retry-After");
-      throw new Error(t.nanoGptRateLimitError(retryAfter));
-    }
-
-    // 如果请求成功
-    if (balanceResponse.ok) {
-      const data = await balanceResponse.json() as NanoGptBalanceResponse;
-      console.log("Nano-GPT /balance endpoint succeeded");
-      return data;
-    }
-
-    // 其他错误
-    const errorText = await balanceResponse.text();
-    throw new Error(t.nanoGptApiError(balanceResponse.status, errorText));
-  } catch (err) {
-    // 如果是认证错误或速率限制错误，立即抛出
-    if (err instanceof Error && (err.message === t.nanoGptAuthError || err.message.startsWith("⚠️"))) {
-      throw err;
-    }
-    // 抛出账户端点的错误
-    throw err;
-  }
-}
+const nanogptConfig = {
+  name: "NanoGPT",
+  baseUrl: "https://nano-gpt.com/api",
+  authHeader: (key: string) => ({ Authorization: `Bearer ${key}` }),
+  endpoint: "/account",
+  schema: NanoGptAccountResponseSchema,
+  transform: (data: any, apiKey: string) => formatNanoGptUsage(data, apiKey),
+};
 
 // ============================================================================
 // 格式化输出
@@ -172,7 +46,7 @@ async function fetchNanoGptAccount(apiKey: string): Promise<NanoGptAccountRespon
  * 格式化 Nano-GPT 账号状态
  */
 function formatNanoGptUsage(
-  data: NanoGptAccountResponse | NanoGptBalanceResponse | null,
+  data: any,
   apiKey: string,
 ): string {
   const lines: string[] = [];
@@ -180,6 +54,8 @@ function formatNanoGptUsage(
   // 标题行：Account: API Key (Nano-GPT)
   const maskedKey = maskString(apiKey);
   lines.push(`${t.account} ${maskedKey} (Nano-GPT)`);
+  lines.push("");
+  lines.push("⚠️ This provider is experimental. API endpoints not verified.");
   lines.push("");
 
   // 如果没有数据
@@ -238,24 +114,4 @@ type NanoGptAuthData = MyStatusConfig["nano-gpt"];
  * @param authData Nano-GPT 认证数据
  * @returns 查询结果，如果账号不存在或无效返回 null
  */
-export async function queryNanoGptUsage(
-  authData: NanoGptAuthData | undefined,
-): Promise<QueryResult | null> {
-  // 检查认证数据是否存在且有效
-  if (!authData || !authData.key) {
-    return null;
-  }
-
-  try {
-    const accountData = await fetchNanoGptAccount(authData.key);
-    return {
-      success: true,
-      output: formatNanoGptUsage(accountData, authData.key),
-    };
-  } catch (err) {
-    return {
-      success: false,
-      error: err instanceof Error ? err.message : String(err),
-    };
-  }
-}
+export const queryNanoGptUsage = createProviderQuery(nanogptConfig);
