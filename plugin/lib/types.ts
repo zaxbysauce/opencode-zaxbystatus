@@ -51,6 +51,15 @@ export interface CopilotAuthData {
 }
 
 /**
+ * Generic API key authentication data
+ * Used by providers with simple API key auth
+ */
+export interface ApiKeyAuthData {
+  type: "api";
+  key: string;
+}
+
+/**
  * Copilot subscription tier
  * See: https://docs.github.com/en/copilot/about-github-copilot/subscription-plans-for-github-copilot
  */
@@ -94,13 +103,40 @@ export interface AntigravityAccountsFile {
 }
 
 /**
+ * MyStatus configuration file
+ * Located at ~/.config/opencode/mystatus.json
+ * Used for providers not stored in OpenCode's native auth.json
+ */
+export interface MyStatusConfig {
+  /** Chutes JWT token */
+  chutes?: { token: string };
+  /** Kimi (Moonshot) API key */
+  kimi?: { key: string };
+  /** Kimi Code API key */
+  "kimi-code"?: { key: string };
+  /** MiniMax API key with optional group ID */
+  minimax?: { key: string; groupId?: string };
+  /** Abacus API key */
+  abacus?: { key: string };
+  /** Nano-GPT API key */
+  "nano-gpt"?: { key: string };
+}
+
+/**
  * 完整认证数据结构
+ * Read from ~/.local/share/opencode/auth.json
  */
 export interface AuthData {
   openai?: OpenAIAuthData;
   "zhipuai-coding-plan"?: ZhipuAuthData;
   "zai-coding-plan"?: ZhipuAuthData;
   "github-copilot"?: CopilotAuthData;
+  /** Anthropic API key */
+  anthropic?: ApiKeyAuthData;
+  /** Groq API key */
+  groq?: ApiKeyAuthData;
+  /** Google Gemini (AI Studio) API key */
+  gemini?: ApiKeyAuthData;
 }
 
 // ============================================================================

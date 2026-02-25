@@ -1,7 +1,7 @@
-# opencode-mystatus
+# opencode-zaxbystatus
 
-[![npm version](https://img.shields.io/npm/v/opencode-mystatus.svg)](https://www.npmjs.com/package/opencode-mystatus)
-[![npm downloads](https://img.shields.io/npm/dt/opencode-mystatus)](https://www.npmjs.com/package/opencode-mystatus)
+[![npm version](https://img.shields.io/npm/v/opencode-zaxbystatus.svg)](https://www.npmjs.com/package/opencode-zaxbystatus)
+[![npm downloads](https://img.shields.io/npm/dt/opencode-zaxbystatus)](https://www.npmjs.com/package/opencode-zaxbystatus)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 An [OpenCode](https://opencode.ai) plugin to query account quota usage for multiple AI platforms.
@@ -12,13 +12,22 @@ An [OpenCode](https://opencode.ai) plugin to query account quota usage for multi
 
 ## Supported Platforms
 
-| Platform     | Account Type      | Data Source                                    |
-| ------------ | ----------------- | ---------------------------------------------- |
-| OpenAI       | Plus / Team / Pro | `~/.local/share/opencode/auth.json`            |
-| Zhipu AI     | Coding Plan       | `~/.local/share/opencode/auth.json`            |
-| Z.ai         | Coding Plan       | `~/.local/share/opencode/auth.json`            |
-| GitHub Copilot | Individual / Business | `~/.local/share/opencode/auth.json`            |
-| Google Cloud | Antigravity       | `~/.config/opencode/antigravity-accounts.json` |
+| Platform | Account Type | Data Source |
+|----------|--------------|-------------|
+| OpenAI | Plus / Team / Pro | `~/.local/share/opencode/auth.json` |
+| Zhipu AI | Coding Plan | `~/.local/share/opencode/auth.json` |
+| Z.ai | Coding Plan | `~/.local/share/opencode/auth.json` |
+| GitHub Copilot | Individual / Business | `~/.local/share/opencode/auth.json` |
+| Google Cloud | Antigravity | `~/.config/opencode/antigravity-accounts.json` |
+| Anthropic Claude | API Key | `~/.local/share/opencode/auth.json` |
+| Groq | API Key | `~/.local/share/opencode/auth.json` |
+| Google Gemini | AI Studio API Key | `~/.local/share/opencode/auth.json` |
+| Kimi (Moonshot) | API Key | `~/.config/opencode/mystatus.json` |
+| Kimi Code | API Key | `~/.config/opencode/mystatus.json` |
+| MiniMax | API Key | `~/.config/opencode/mystatus.json` |
+| Abacus | API Key | `~/.config/opencode/mystatus.json` |
+| Nano-GPT | API Key | `~/.config/opencode/mystatus.json` |
+| Chutes | JWT Token | `~/.config/opencode/mystatus.json` |
 
 ## Installation
 
@@ -27,7 +36,7 @@ An [OpenCode](https://opencode.ai) plugin to query account quota usage for multi
 Paste this into any LLM agent (Claude Code, OpenCode, Cursor, etc.):
 
 ```
-Install the opencode-mystatus plugin by following: https://raw.githubusercontent.com/vbgate/opencode-mystatus/main/README.md
+Install the opencode-zaxbystatus plugin by following: https://raw.githubusercontent.com/zaxbysauce/opencode-zaxbystatus/main/README.md
 ```
 
 <details>
@@ -35,13 +44,13 @@ Install the opencode-mystatus plugin by following: https://raw.githubusercontent
 
 To install this plugin, perform these steps:
 
-1. Add `"opencode-mystatus"` to the `plugin` array in `~/.config/opencode/opencode.json`
+1. Add `"opencode-zaxbystatus"` to the `plugin` array in `~/.config/opencode/opencode.json`
 
 2. Add the slash command to the `command` object in the same file:
 
 ```json
 {
-  "plugin": ["opencode-mystatus"],
+  "plugin": ["opencode-zaxbystatus"],
   "command": {
     "mystatus": {
       "description": "Query quota usage for all AI accounts",
@@ -61,7 +70,7 @@ To install this plugin, perform these steps:
 
 ```json
 {
-  "plugin": ["opencode-mystatus"],
+  "plugin": ["opencode-zaxbystatus"],
   "command": {
     "mystatus": {
       "description": "Query quota usage for all AI accounts",
@@ -155,18 +164,34 @@ Claude     2d 9h      ░░░░░░░░░░░░░░░░░░░�
 - Reset time countdown
 - Multi-language support (Chinese / English)
 - Multiple Google Cloud accounts support
-- API key masking for security
+- Support for 14 AI platforms (OpenAI, Anthropic, Groq, Gemini, Zhipu, Z.ai, Google Cloud, Kimi, MiniMax, Abacus, Nano-GPT, Chutes, GitHub Copilot)
 
 ## Configuration
 
-No additional configuration required. The plugin automatically reads credentials from:
+No additional configuration required for most platforms. The plugin automatically reads credentials from:
 
-- **OpenAI, Zhipu AI, Z.ai & GitHub Copilot**: `~/.local/share/opencode/auth.json`
+- **OpenAI, Zhipu AI, Z.ai, GitHub Copilot, Anthropic, Groq, Gemini**: `~/.local/share/opencode/auth.json`
 - **Google Cloud**: `~/.config/opencode/antigravity-accounts.json`
+- **Other providers (Kimi, MiniMax, etc.)**: `~/.config/opencode/mystatus.json`
 
 ### Google Cloud Setup
 
 To query Google Cloud (Antigravity) account quota, you need to install the [opencode-antigravity-auth](https://github.com/NoeFabris/opencode-antigravity-auth) plugin first to authenticate your Google account.
+
+### MyStatus.json Setup
+
+For providers not stored in OpenCode's native auth (Kimi, MiniMax, Abacus, Nano-GPT, Chutes), create `~/.config/opencode/mystatus.json`:
+
+```json
+{
+  "chutes": { "token": "eyJ..." },
+  "kimi": { "key": "sk-..." },
+  "kimi-code": { "key": "sk-..." },
+  "minimax": { "key": "...", "groupId": "..." },
+  "abacus": { "key": "..." },
+  "nano-gpt": { "key": "..." }
+}
+```
 
 ## Security
 
@@ -176,6 +201,7 @@ This plugin is safe to use:
 
 - `~/.local/share/opencode/auth.json` - OpenCode's official auth storage
 - `~/.config/opencode/antigravity-accounts.json` - Antigravity plugin's account storage
+- `~/.config/opencode/mystatus.json` - MyStatus plugin configuration
 
 **API Endpoints (all official):**
 
@@ -185,6 +211,15 @@ This plugin is safe to use:
 - `https://api.github.com/copilot_internal/user` - GitHub Copilot official API
 - `https://oauth2.googleapis.com/token` - Google official OAuth API
 - `https://cloudcode-pa.googleapis.com/v1internal:fetchAvailableModels` - Google Cloud official API
+- `https://api.anthropic.com/v1/models` - Anthropic official API
+- `https://api.groq.com/openai/v1/models` - Groq official API
+- `https://generativelanguage.googleapis.com/v1beta/models` - Google Gemini official API
+- `https://api.moonshot.cn/v1/users/me/balance` - Kimi official API
+- `https://api.kimi.com/coding/v1/users/me/balance` - Kimi Code official API
+- `https://api.minimax.io/v1/models` - MiniMax official API
+- `https://abacus.ai/api/v0/getUsage` - Abacus official API
+- `https://nano-gpt.com/api/account` - Nano-GPT official API
+- `https://api.chutes.ai/users/me/quota_usage/me` - Chutes official API
 
 **Privacy:**
 

@@ -6,7 +6,10 @@
  */
 
 import { t, currentLang } from "./i18n";
-import { REQUEST_TIMEOUT_MS } from "./types";
+import { REQUEST_TIMEOUT_MS, MyStatusConfig } from "./types";
+import { readFile } from "fs/promises";
+import { homedir } from "os";
+import { join } from "path";
 
 // ============================================================================
 // 时间格式化
@@ -132,4 +135,30 @@ export function maskString(str: string, showChars: number = 4): string {
     return str;
   }
   return `${str.slice(0, showChars)}****${str.slice(-showChars)}`;
+}
+
+// ============================================================================
+// 配置文件读取
+// ============================================================================
+
+const MYSTATUS_CONFIG_PATH = join(
+  homedir(),
+  ".config",
+  "opencode",
+  "mystatus.json",
+);
+
+/**
+ * 读取 mystatus 配置文件
+ * 读取 ~/.config/opencode/mystatus.json
+ * 返回 null 如果文件不存在或解析失败
+ */
+export async function readMyStatusConfig(): Promise<MyStatusConfig | null> {
+  try {
+    const content = await readFile(MYSTATUS_CONFIG_PATH, "utf-8");
+    const config = JSON.parse(content) as MyStatusConfig;
+    return config;
+  } catch {
+    return null;
+  }
 }

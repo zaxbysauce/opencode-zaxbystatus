@@ -1,7 +1,7 @@
-# opencode-mystatus
+# opencode-zaxbystatus
 
-[![npm version](https://img.shields.io/npm/v/opencode-mystatus.svg)](https://www.npmjs.com/package/opencode-mystatus)
-[![npm 总下载量](https://img.shields.io/npm/dt/opencode-mystatus)](https://www.npmjs.com/package/opencode-mystatus)
+[![npm version](https://img.shields.io/npm/v/opencode-zaxbystatus.svg)](https://www.npmjs.com/package/opencode-zaxbystatus)
+[![npm 总下载量](https://img.shields.io/npm/dt/opencode-zaxbystatus)](https://www.npmjs.com/package/opencode-zaxbystatus)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 [OpenCode](https://opencode.ai) 插件，用于查询多个 AI 平台的账号额度使用情况。
@@ -27,7 +27,7 @@
 将以下内容粘贴到任意 AI 代理（Claude Code、OpenCode、Cursor 等）：
 
 ```
-Install the opencode-mystatus plugin by following: https://raw.githubusercontent.com/vbgate/opencode-mystatus/main/README.md
+Install the opencode-zaxbystatus plugin by following: https://raw.githubusercontent.com/zaxbysauce/opencode-zaxbystatus/main/README.md
 ```
 
 <details>
@@ -35,13 +35,13 @@ Install the opencode-mystatus plugin by following: https://raw.githubusercontent
 
 安装此插件需要执行以下步骤：
 
-1. 在 `~/.config/opencode/opencode.json` 的 `plugin` 数组中添加 `"opencode-mystatus"`
+1. 在 `~/.config/opencode/opencode.json` 的 `plugin` 数组中添加 `"opencode-zaxbystatus"`
 
 2. 在同一文件的 `command` 对象中添加斜杠命令：
 
 ```json
 {
-  "plugin": ["opencode-mystatus"],
+  "plugin": ["opencode-zaxbystatus"],
   "command": {
     "mystatus": {
       "description": "Query quota usage for all AI accounts",
@@ -61,7 +61,7 @@ Install the opencode-mystatus plugin by following: https://raw.githubusercontent
 
 ```json
 {
-  "plugin": ["opencode-mystatus"],
+  "plugin": ["opencode-zaxbystatus"],
   "command": {
     "mystatus": {
       "description": "Query quota usage for all AI accounts",
