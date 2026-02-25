@@ -8,7 +8,9 @@
  * 4. Zod dependency is in package.json
  */
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { describe, it, expect, beforeAll } from "vitest";
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { z } from "zod";
 
 // ============================================================================
@@ -376,6 +378,7 @@ describe("Providers: Import validateResponse or use factory", () => {
 
 describe("Providers: Call validateResponse (not as Promise<)", () => {
   // Provider files that use the factory pattern - they don't call validateResponse directly
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const factoryProviderFiles = [
     "groq.ts",
     "anthropic.ts",

@@ -39,10 +39,7 @@ import * as os from "os";
 
 import type {
   QuotaDetail,
-  QuotaSnapshots,
   CopilotUsageResponse,
-  CopilotTokenResponse,
-  BillingUsageItem,
   BillingUsageResponse,
 } from "./schemas";
 

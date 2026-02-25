@@ -10,7 +10,9 @@
  * 6. Error handling with context wrapping
  */
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { z } from "zod";
 
 // ============================================================================

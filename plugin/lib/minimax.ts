@@ -78,7 +78,7 @@ async function fetchMinimaxRateLimits(
 
     // 解析速率限制头
     return parseRateLimitHeaders(response);
-  } catch (primaryError) {
+  } catch {
     // 如果主要端点失败，尝试备用端点
 
     const response = await fetchWithTimeout(MINIMAX_MODELS_URL_FALLBACK, {

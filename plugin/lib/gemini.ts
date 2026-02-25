@@ -8,10 +8,8 @@
  */
 
 import { t } from "./i18n";
-import {
-  type QueryResult,
-  type ApiKeyAuthData,
-} from "./types";
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+import { type ApiKeyAuthData } from "./types";
 import {
   maskString,
 } from "./utils";
@@ -28,8 +26,8 @@ const geminiConfig = {
   authHeader: (key: string) => ({ "x-goog-api-key": key }),
   endpoint: "/v1beta/models",
   schema: GeminiRateLimitsSchema,
-  transform: (data: any, apiKey: string) => formatGeminiUsage(data, apiKey),
-  parseHeaders: (headers: Headers): any | null => {
+  transform: (data: unknown, apiKey: string) => formatGeminiUsage(data as Record<string, number> | null, apiKey),
+  parseHeaders: (headers: Headers): Record<string, number | undefined> | null => {
     const limit = headers.get("x-ratelimit-limit");
     const remaining = headers.get("x-ratelimit-remaining");
     const reset = headers.get("x-ratelimit-reset");
@@ -55,9 +53,11 @@ const geminiConfig = {
  * 格式化 Gemini 速率限制状态
  */
 function formatGeminiUsage(
-  rateLimits: any,
+  rateLimits: Record<string, number> | null,
   apiKey: string,
 ): string {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rawData = rateLimits as any;
   const lines: string[] = [];
 
   // 标题行：Account: API Key (Google Gemini)
@@ -70,28 +70,28 @@ function formatGeminiUsage(
   lines.push("");
 
   // 如果没有速率限制数据
-  if (!rateLimits) {
+  if (!rawData) {
     lines.push(t.noQuotaData);
     return lines.join("\n");
   }
 
   // 配额限制信息
-  if (rateLimits.limit !== undefined && rateLimits.remaining !== undefined) {
-    const remainingFormatted = rateLimits.remaining.toLocaleString();
-    const limitFormatted = rateLimits.limit.toLocaleString();
+  if (rawData.limit !== undefined && rawData.remaining !== undefined) {
+    const remainingFormatted = rawData.remaining.toLocaleString();
+    const limitFormatted = rawData.limit.toLocaleString();
     lines.push(`${t.geminiQuotaRemaining}: ${t.ofLimit(remainingFormatted, limitFormatted)}`);
-  } else if (rateLimits.remaining !== undefined) {
-    const remainingFormatted = rateLimits.remaining.toLocaleString();
+  } else if (rawData.remaining !== undefined) {
+    const remainingFormatted = rawData.remaining.toLocaleString();
     lines.push(`${t.geminiQuotaRemaining}: ${remainingFormatted}`);
-  } else if (rateLimits.limit !== undefined) {
-    const limitFormatted = rateLimits.limit.toLocaleString();
+  } else if (rawData.limit !== undefined) {
+    const limitFormatted = rawData.limit.toLocaleString();
     lines.push(`${t.geminiQuotaLimit}: ${limitFormatted}`);
   }
 
   // 重置时间
-  if (rateLimits.reset) {
+  if (rawData.reset) {
     const now = Math.floor(Date.now() / 1000);
-    const resetSeconds = Math.max(0, rateLimits.reset - now);
+    const resetSeconds = Math.max(0, rawData.reset - now);
     if (resetSeconds > 0) {
       // reset 是绝对时间戳，需要转换为秒数
       lines.push(t.resetIn(formatGeminiResetTime(resetSeconds)));

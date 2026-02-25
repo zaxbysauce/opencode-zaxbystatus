@@ -52,6 +52,7 @@ function getBackoffDelay(retryAttempt: number): number {
   return 1000 * Math.pow(2, retryAttempt);
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function formatHeaders(headers?: Record<string, string>): string {
   if (!headers) return "{}";
   const formatted: Record<string, string> = {};
@@ -140,30 +141,16 @@ async function requestInternal<T>(
 
       // Parse JSON response
       let rawData: unknown;
-      try {
-        const contentType = response.headers.get("content-type");
-        if (contentType && contentType.includes("application/json")) {
-          rawData = await response.json();
-        } else {
-          // For non-JSON responses, store the text
-          rawData = await response.text();
-        }
-      } catch (parseError) {
-        const error = new Error(
-          `[${context}] Failed to parse response: ${
-            parseError instanceof Error ? parseError.message : String(parseError)
-          }`,
-        );
-        throw error;
+      const contentType = response.headers.get("content-type");
+      if (contentType && contentType.includes("application/json")) {
+        rawData = await response.json();
+      } else {
+        // For non-JSON responses, store the text
+        rawData = await response.text();
       }
 
       // Validate response against schema
-      try {
-        return validateResponse(rawData, schema, context);
-      } catch (validationError) {
-        // Validation errors are not retryable
-        throw validationError;
-      }
+      return validateResponse(rawData, schema, context);
 
     } catch (err) {
       const error = err as Error;

@@ -31,26 +31,37 @@ export interface ProviderHeaderConfig<T> {
 }
 
 // ============================================================================
+// Auth Data Types
+// ============================================================================
+
+/**
+ * Generic API key authentication data
+ */
+export interface ApiKeyAuthData {
+  key: string;
+}
+
+// ============================================================================
 // Factory Functions
 // ============================================================================
 
 export function createProviderQuery<T>(
   config: ProviderConfig<T>
 ) {
-  return async (apiKey: string | undefined): Promise<QueryResult | null> => {
-    if (!apiKey) return null;
+  return async (authData: ApiKeyAuthData | undefined): Promise<QueryResult | null> => {
+    if (!authData || !authData.key) return null;
 
     try {
       const data = await request<T>({
         url: `${config.baseUrl}${config.endpoint}`,
-        headers: config.authHeader(apiKey),
+        headers: config.authHeader(authData.key),
         schema: config.schema,
         context: config.name,
       });
 
       return {
         success: true,
-        output: config.transform(data, apiKey),
+        output: config.transform(data, authData.key),
       };
     } catch (err) {
       return handleProviderError(err, config.name);
@@ -61,15 +72,15 @@ export function createProviderQuery<T>(
 export function createProviderQueryWithHeaders<T>(
   config: ProviderHeaderConfig<T>
 ) {
-  return async (apiKey: string | undefined): Promise<QueryResult | null> => {
-    if (!apiKey) return null;
+  return async (authData: ApiKeyAuthData | undefined): Promise<QueryResult | null> => {
+    if (!authData || !authData.key) return null;
 
     try {
       const response = await fetchWithTimeout(
         `${config.baseUrl}${config.endpoint}`,
         {
           method: "GET",
-          headers: config.authHeader(apiKey),
+          headers: config.authHeader(authData.key),
         }
       );
 
@@ -80,13 +91,13 @@ export function createProviderQueryWithHeaders<T>(
       if (!data) {
         return {
           success: true,
-          output: config.transform(null as any, apiKey),
+          output: config.transform(null as T, authData.key),
         };
       }
 
       return {
         success: true,
-        output: config.transform(data, apiKey),
+        output: config.transform(data, authData.key),
       };
     } catch (err) {
       return handleProviderError(err, config.name);

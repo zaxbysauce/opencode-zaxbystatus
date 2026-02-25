@@ -8,14 +8,11 @@
  */
 
 import { t } from "./i18n";
-import {
-  type QueryResult,
-  type ApiKeyAuthData,
-} from "./types";
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+import { type ApiKeyAuthData } from "./types";
 import {
   formatDuration,
   maskString,
-  fetchWithTimeout,
 } from "./utils";
 import { GroqRateLimitsSchema } from "./schemas";
 import { createProviderQueryWithHeaders } from "./provider-factory";
@@ -30,8 +27,8 @@ const groqConfig = {
   authHeader: (key: string) => ({ Authorization: `Bearer ${key}` }),
   endpoint: "/openai/v1/models",
   schema: GroqRateLimitsSchema,
-  transform: (data: any, apiKey: string) => formatGroqUsage(data, apiKey),
-  parseHeaders: (headers: Headers): any | null => {
+  transform: (data: unknown, apiKey: string) => formatGroqUsage(data as Record<string, number> | null, apiKey),
+  parseHeaders: (headers: Headers): Record<string, number | undefined> | null => {
     const requestLimit = headers.get("x-ratelimit-limit-requests");
     const requestsRemaining = headers.get("x-ratelimit-remaining-requests");
     const requestReset = headers.get("x-ratelimit-reset-requests");
@@ -67,9 +64,11 @@ const groqConfig = {
  * 格式化 Groq 速率限制状态
  */
 function formatGroqUsage(
-  rateLimits: any,
+  rateLimits: Record<string, number> | null,
   apiKey: string,
 ): string {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rawData = rateLimits as any;
   const lines: string[] = [];
 
   // 标题行：Account: API Key (Groq)
@@ -78,7 +77,7 @@ function formatGroqUsage(
   lines.push("");
 
   // 如果没有速率限制数据
-  if (!rateLimits) {
+  if (!rawData) {
     lines.push(t.noQuotaData);
     return lines.join("\n");
   }
@@ -88,27 +87,27 @@ function formatGroqUsage(
   lines.push("");
 
   // 请求限制信息
-  const requestsFormatted = rateLimits.requestsRemaining.toLocaleString();
-  const limitFormatted = rateLimits.requestLimit.toLocaleString();
+  const requestsFormatted = rawData.requestsRemaining.toLocaleString();
+  const limitFormatted = rawData.requestLimit.toLocaleString();
   lines.push(`${t.groqRequestsRemaining}: ${t.ofLimit(requestsFormatted, limitFormatted)}`);
 
   // 请求重置时间
-  if (rateLimits.requestResetSeconds > 0) {
-    lines.push(t.resetIn(formatDuration(rateLimits.requestResetSeconds)));
+  if (rawData.requestResetSeconds > 0) {
+    lines.push(t.resetIn(formatDuration(rawData.requestResetSeconds)));
   }
 
   // Token 限制信息（如果有）
-  if (rateLimits.tokenLimit && rateLimits.tokensRemaining !== undefined) {
+  if (rawData.tokenLimit && rawData.tokensRemaining !== undefined) {
     lines.push("");
-    const tokensRemainingFormatted = rateLimits.tokensRemaining.toLocaleString();
-    const tokenLimitFormatted = rateLimits.tokenLimit.toLocaleString();
+    const tokensRemainingFormatted = rawData.tokensRemaining.toLocaleString();
+    const tokenLimitFormatted = rawData.tokenLimit.toLocaleString();
     lines.push(
       `${t.groqTokensRemaining}: ${t.ofLimit(tokensRemainingFormatted, tokenLimitFormatted)}`,
     );
 
     // Token 重置时间
-    if (rateLimits.tokenResetSeconds && rateLimits.tokenResetSeconds > 0) {
-      lines.push(t.resetIn(formatDuration(rateLimits.tokenResetSeconds)));
+    if (rawData.tokenResetSeconds && rawData.tokenResetSeconds > 0) {
+      lines.push(t.resetIn(formatDuration(rawData.tokenResetSeconds)));
     }
   }
 

@@ -33,10 +33,9 @@ import {
 // ============================================================================
 
 import type {
-  ChutesQuotaUsageItem,
   ChutesQuotaUsageResponse,
-  ChutesQuotaLimitItem,
   ChutesQuotaLimitsResponse,
+  ChutesQuotaLimitItem,
 } from "./schemas";
 
 // ============================================================================

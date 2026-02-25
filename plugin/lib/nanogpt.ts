@@ -9,10 +9,7 @@
  */
 
 import { t } from "./i18n";
-import {
-  type QueryResult,
-  type MyStatusConfig,
-} from "./types";
+import { type MyStatusConfig } from "./types";
 import {
   maskString,
 } from "./utils";
@@ -35,7 +32,7 @@ const nanogptConfig = {
   authHeader: (key: string) => ({ Authorization: `Bearer ${key}` }),
   endpoint: "/account",
   schema: NanoGptAccountResponseSchema,
-  transform: (data: any, apiKey: string) => formatNanoGptUsage(data, apiKey),
+  transform: (data: unknown, apiKey: string) => formatNanoGptUsage(data, apiKey),
 };
 
 // ============================================================================
@@ -46,9 +43,11 @@ const nanogptConfig = {
  * 格式化 Nano-GPT 账号状态
  */
 function formatNanoGptUsage(
-  data: any,
+  data: unknown,
   apiKey: string,
 ): string {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rawData = data as any;
   const lines: string[] = [];
 
   // 标题行：Account: API Key (Nano-GPT)
@@ -59,7 +58,7 @@ function formatNanoGptUsage(
   lines.push("");
 
   // 如果没有数据
-  if (!data) {
+  if (!rawData) {
     lines.push(t.noQuotaData);
     return lines.join("\n");
   }
@@ -69,13 +68,13 @@ function formatNanoGptUsage(
   lines.push("");
 
   // 账户余额
-  if (typeof data.balance === "number") {
-    const currency = data.currency || "USD";
-    lines.push(`${t.nanoGptBalance}: ${currency} ${data.balance.toFixed(2)}`);
+  if (typeof rawData.balance === "number") {
+    const currency = rawData.currency || "USD";
+    lines.push(`${t.nanoGptBalance}: ${currency} ${rawData.balance.toFixed(2)}`);
   }
 
   // 尝试转换为账户响应类型以获取更多信息
-  const accountData = data as NanoGptAccountResponse;
+  const accountData = rawData as NanoGptAccountResponse;
 
   // 每日请求限制 (RPD)
   if (typeof accountData.rpdLimit === "number") {
@@ -107,6 +106,7 @@ function formatNanoGptUsage(
 /**
  * Nano-GPT 认证数据类型
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 type NanoGptAuthData = MyStatusConfig["nano-gpt"];
 
 /**

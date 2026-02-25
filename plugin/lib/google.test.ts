@@ -127,7 +127,7 @@ describe("No Hardcoded Secrets", () => {
 
     // OAuth client IDs typically look like: xxx.apps.googleusercontent.com
     // They should NOT be hardcoded
-    const hardcodedIdPattern = /['"][a-zA-Z0-9\-]+\.apps\.googleusercontent\.com['"]/;
+    const hardcodedIdPattern = /['"][a-zA-Z0-9-]+\.apps\.googleusercontent\.com['"]/;
     
     expect(hardcodedIdPattern.test(sourceCode)).toBe(false);
   });

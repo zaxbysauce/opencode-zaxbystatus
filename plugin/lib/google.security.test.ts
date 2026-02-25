@@ -32,6 +32,7 @@ describe("Security: Secret Leakage Prevention", () => {
     const sourceCode = fs.readFileSync(modulePath, "utf-8");
 
     // Check that client_id is NOT in any error message template
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const errorMessages = [
       "Google OAuth credentials not configured",
       "Please set GOOGLE_CLIENT_ID",

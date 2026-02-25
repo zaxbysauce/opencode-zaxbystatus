@@ -30,6 +30,7 @@ import { QuotaLimitResponseSchema } from "./schemas";
 // 类型定义
 // ============================================================================
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import type { QuotaLimitResponse, UsageLimitItem } from "./schemas";
 
 interface PlatformConfig {

@@ -8,10 +8,8 @@
  */
 
 import { t } from "./i18n";
-import {
-  type QueryResult,
-  type ApiKeyAuthData,
-} from "./types";
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+import { type ApiKeyAuthData } from "./types";
 import {
   formatDuration,
   maskString,
@@ -29,8 +27,8 @@ const anthropicConfig = {
   authHeader: (key: string) => ({ "x-api-key": key, "anthropic-version": "2023-06-01" }),
   endpoint: "/v1/models",
   schema: AnthropicRateLimitsSchema,
-  transform: (data: any, apiKey: string) => formatAnthropicUsage(data, apiKey),
-  parseHeaders: (headers: Headers): any | null => {
+  transform: (data: unknown, apiKey: string) => formatAnthropicUsage(data as Record<string, number> | null, apiKey),
+  parseHeaders: (headers: Headers): Record<string, number | undefined> | null => {
     const requestsRemaining = headers.get("anthropic-ratelimit-requests-remaining");
     const tokensRemaining = headers.get("anthropic-ratelimit-tokens-remaining");
     const tokensReset = headers.get("anthropic-ratelimit-tokens-reset");
@@ -60,9 +58,11 @@ const anthropicConfig = {
  * 格式化 Anthropic 速率限制状态
  */
 function formatAnthropicUsage(
-  rateLimits: any,
+  rateLimits: Record<string, number> | null,
   apiKey: string,
 ): string {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rawData = rateLimits as any;
   const lines: string[] = [];
 
   // 标题行：Account: API Key (Anthropic Claude)
@@ -71,7 +71,7 @@ function formatAnthropicUsage(
   lines.push("");
 
   // 如果没有速率限制数据
-  if (!rateLimits) {
+  if (!rawData) {
     lines.push(t.noQuotaData);
     return lines.join("\n");
   }
@@ -81,17 +81,17 @@ function formatAnthropicUsage(
   lines.push("");
 
   // 请求剩余数
-  const requestsFormatted = rateLimits.requestsRemaining.toLocaleString();
+  const requestsFormatted = rawData.requestsRemaining.toLocaleString();
   lines.push(`${t.requestsRemaining}: ${requestsFormatted}`);
 
   // Token 剩余数
-  const tokensFormatted = rateLimits.tokensRemaining.toLocaleString();
+  const tokensFormatted = rawData.tokensRemaining.toLocaleString();
   lines.push(`${t.tokensRemaining}: ${tokensFormatted}`);
 
   // 重置时间
-  if (rateLimits.tokensReset) {
+  if (rawData.tokensReset) {
     const now = Math.floor(Date.now() / 1000);
-    const resetSeconds = Math.max(0, rateLimits.tokensReset - now);
+    const resetSeconds = Math.max(0, rawData.tokensReset - now);
     if (resetSeconds > 0) {
       lines.push(t.resetIn(formatDuration(resetSeconds)));
     }

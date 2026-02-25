@@ -9,10 +9,7 @@
  */
 
 import { t } from "./i18n";
-import {
-  type QueryResult,
-  type MyStatusConfig,
-} from "./types";
+import { type MyStatusConfig } from "./types";
 import {
   maskString,
 } from "./utils";
@@ -23,6 +20,7 @@ import { createProviderQuery } from "./provider-factory";
 // 类型定义
 // ============================================================================
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import type { AbacusUsageResponse } from "./schemas";
 
 // ============================================================================
@@ -35,7 +33,7 @@ const abacusConfig = {
   authHeader: (key: string) => ({ Authorization: `Bearer ${key}` }),
   endpoint: "/getUsage",
   schema: AbacusUsageResponseSchema,
-  transform: (data: any, apiKey: string) => formatAbacusUsage(data, apiKey),
+  transform: (data: unknown, apiKey: string) => formatAbacusUsage(data, apiKey),
 };
 
 // ============================================================================
@@ -46,9 +44,11 @@ const abacusConfig = {
  * 格式化 Abacus AI 账号状态
  */
 function formatAbacusUsage(
-  data: any,
+  data: unknown,
   apiKey: string,
 ): string {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rawData = data as any;
   const lines: string[] = [];
 
   // 标题行：Account: API Key (Abacus AI)
@@ -59,7 +59,7 @@ function formatAbacusUsage(
   lines.push("");
 
   // 如果没有数据
-  if (!data) {
+  if (!rawData) {
     lines.push(t.noQuotaData);
     lines.push("");
     lines.push(t.abacusEndpointNote);
@@ -74,20 +74,20 @@ function formatAbacusUsage(
   let creditsUsed: number | undefined;
 
   // 尝试从响应中提取使用量信息
-  if (typeof data.usage === "number") {
-    usage = data.usage;
+  if (typeof rawData.usage === "number") {
+    usage = rawData.usage;
   }
-  if (typeof data.limit === "number") {
-    limit = data.limit;
+  if (typeof rawData.limit === "number") {
+    limit = rawData.limit;
   }
-  if (typeof data.credits === "number") {
-    credits = data.credits;
+  if (typeof rawData.credits === "number") {
+    credits = rawData.credits;
   }
-  if (typeof data.creditsRemaining === "number") {
-    creditsRemaining = data.creditsRemaining;
+  if (typeof rawData.creditsRemaining === "number") {
+    creditsRemaining = rawData.creditsRemaining;
   }
-  if (typeof data.creditsUsed === "number") {
-    creditsUsed = data.creditsUsed;
+  if (typeof rawData.creditsUsed === "number") {
+    creditsUsed = rawData.creditsUsed;
   }
 
   // 显示使用量信息
@@ -125,17 +125,17 @@ function formatAbacusUsage(
     lines.push(t.abacusEndpointNote);
 
     // 可选：显示账户信息如果存在
-    if (data.account) {
+    if (rawData.account) {
       lines.push("");
       lines.push("Account Info:");
-      if (data.account.name) {
-        lines.push(`  Name: ${data.account.name}`);
+      if (rawData.account.name) {
+        lines.push(`  Name: ${rawData.account.name}`);
       }
-      if (data.account.email) {
-        lines.push(`  Email: ${data.account.email}`);
+      if (rawData.account.email) {
+        lines.push(`  Email: ${rawData.account.email}`);
       }
-      if (data.account.plan) {
-        lines.push(`  Plan: ${data.account.plan}`);
+      if (rawData.account.plan) {
+        lines.push(`  Plan: ${rawData.account.plan}`);
       }
     }
   }
@@ -154,6 +154,7 @@ function formatAbacusUsage(
 /**
  * Abacus 认证数据类型
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 type AbacusAuthData = MyStatusConfig["abacus"];
 
 /**

@@ -9,6 +9,7 @@
  * 5. No old error handling pattern remains in provider files
  */
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { describe, it, expect, beforeAll } from "vitest";
 
 // ============================================================================

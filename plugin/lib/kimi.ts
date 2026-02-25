@@ -9,11 +9,7 @@
  */
 
 import { t } from "./i18n";
-import {
-  type QueryResult,
-  type MyStatusConfig,
-  HIGH_USAGE_THRESHOLD,
-} from "./types";
+import { HIGH_USAGE_THRESHOLD } from "./types";
 import {
   createProgressBar,
   calcRemainPercent,
@@ -26,6 +22,7 @@ import { createProviderQuery } from "./provider-factory";
 // 类型定义
 // ============================================================================
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import type { KimiBalanceResponse } from "./schemas";
 
 interface KimiConfig {
@@ -38,12 +35,14 @@ interface KimiConfig {
 // Provider Configurations
 // ============================================================================
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const MOONSHOT_CONFIG: KimiConfig = {
   apiUrl: "https://api.moonshot.cn/v1/users/me/balance",
   apiError: t.kimiApiError,
   accountLabel: "Moonshot",
 };
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const KIMI_CODE_CONFIG: KimiConfig = {
   apiUrl: "https://api.kimi.com/coding/v1/users/me/balance",
   apiError: t.kimiCodeApiError,
@@ -60,7 +59,7 @@ const kimiMoonshotConfig = {
   authHeader: (key: string) => ({ Authorization: `Bearer ${key}` }),
   endpoint: "/v1/users/me/balance",
   schema: KimiBalanceResponseSchema,
-  transform: (data: any, apiKey: string) => formatKimiUsage(data, apiKey, "Moonshot"),
+  transform: (data: unknown, apiKey: string) => formatKimiUsage(data, apiKey, "Moonshot"),
 };
 
 const kimiCodeConfig = {
@@ -69,7 +68,7 @@ const kimiCodeConfig = {
   authHeader: (key: string) => ({ Authorization: `Bearer ${key}` }),
   endpoint: "/coding/v1/users/me/balance",
   schema: KimiBalanceResponseSchema,
-  transform: (data: any, apiKey: string) => formatKimiUsage(data, apiKey, "Kimi Code"),
+  transform: (data: unknown, apiKey: string) => formatKimiUsage(data, apiKey, "Kimi Code"),
 };
 
 // ============================================================================
@@ -80,12 +79,14 @@ const kimiCodeConfig = {
  * 格式化 Kimi 使用情况
  */
 function formatKimiUsage(
-  data: any,
+  data: unknown,
   apiKey: string,
   accountLabel: string,
 ): string {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rawData = data as any;
   const lines: string[] = [];
-  const balanceData = data?.data;
+  const balanceData = rawData?.data;
 
   // 标题行：Account: API Key (Account Label) - 显示脱敏后的 key
   const maskedKey = maskString(apiKey);
