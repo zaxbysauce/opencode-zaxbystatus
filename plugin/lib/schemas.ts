@@ -35,8 +35,8 @@ export type OpenAIUsageResponse = z.infer<typeof OpenAIUsageSchema>;
 
 export const UsageLimitItemSchema = z.object({
   type: z.enum(["TIME_LIMIT", "TOKENS_LIMIT"]),
-  usage: z.number(),
-  currentValue: z.number(),
+  usage: z.number().optional(),
+  currentValue: z.number().optional(),
   percentage: z.number(),
   nextResetTime: z.number().optional(),
 });
